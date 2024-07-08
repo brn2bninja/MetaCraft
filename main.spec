@@ -6,7 +6,6 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('Materials/*', 'Materials'),
-           ('Export/*', 'Export'),
            ('appicon.png', '.')],
     hiddenimports=[],
     hookspath=[],

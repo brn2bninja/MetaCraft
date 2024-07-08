@@ -2,7 +2,6 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QFont, QIcon
 from newwindow import *
-
 import os
 import math
 import numpy as np
@@ -18,9 +17,10 @@ class Widget(QWidget):
         self.font = QFont("Times", 10.5)
         self.setFont(self.font)
         self.linewidth = 100
-        self.setGeometry(700, 500, 500, 700)
+        self.setGeometry(700, 500, 580, 700)
         self.order_nfd = [0, 1, 2]
         self.fnum = 4
+        self.exportdir = "Export/" if os.path.exists("Export/") else "../../../Export/"
         self.sorted = False
         
         # 1. Groupbox for metalens design parameters
@@ -77,11 +77,13 @@ class Widget(QWidget):
         # Combobox for wavelength domain
         self.wlDomain = QComboBox(self)
         self.wlDomain.addItems(["Visible", "Near Infrared", "Ultra Violet"])
+        self.wlDomain.setFixedWidth(130)
         
         # Combobox for wavelength value
         self.wlValue = QComboBox(self)
-        self.wlValue.setFixedWidth(50)
+        self.wlValue.setFixedWidth(60)
         wl_vis = [str(i) for i in range(400, 701, 5)] + ["532", "632.8"]
+        wl_vis.sort()
         wl_nir = ["900", "940", "980", "1550"]
         wl_uv =  ["248", "266", "325", "384"]
         self.wlValue.addItems(wl_vis)
@@ -110,21 +112,27 @@ class Widget(QWidget):
         # Combobox for polarization dependency
         self.pol_dependency = QComboBox(self)
         self.pol_dependency.addItems(["Dependent", "Independent"])
+        self.pol_dependency.setFixedWidth(130)
         
         # Combobox for polarization value
         self.polValue = QComboBox(self)
         self.polValue.addItems(["RCP", "LCP"])
+        self.polValue.setFixedWidth(60)
         def update_polValue():
             selected_dependency = self.pol_dependency.currentText()
             if selected_dependency == "Dependent":
                 # Set polarization
                 self.polValue.clear()
                 self.polValue.addItems(["RCP", "LCP"])
+                self.polValue.setFixedWidth(60)
+                self.pol_dependency.setFixedWidth(130)
                 
             elif selected_dependency == "Independent":
                 # Set polarization
                 self.polValue.clear()
                 self.polValue.addItems(["Co-pol", "Cross-pol"])
+                self.polValue.setFixedWidth(80)
+                self.pol_dependency.setFixedWidth(110)
         self.pol_dependency.currentTextChanged.connect(update_polValue)
         
         pol_layout = QHBoxLayout()
@@ -237,6 +245,8 @@ class Widget(QWidget):
         sort_label = QLabel("Sort by ")
         
         self.sort_choice = QComboBox()
+        self.sort_choice.setStyleSheet("color: black; background-color: white")
+        self.sort_choice.setFixedWidth(100)
         self.sort_choice.addItems(["Transmittance", "FoM"])
         def update_sortingmethod():
             selected_dependency = self.pol_dependency.currentText()
@@ -261,10 +271,12 @@ class Widget(QWidget):
         Result_additional_layout_1.addWidget(sort_label)
         Result_additional_layout_1.addWidget(self.sort_choice)
         Result_additional_layout_1.addWidget(self.sort_button)
+        Result_additional_layout_1.setAlignment(Qt.AlignLeft)
         
         self.Result_additional_layout_2 = QHBoxLayout()
         Result_additional_layout_3 = QHBoxLayout()
         self.plot_fig = QPushButton("Plot Figure")
+        self.plot_fig.setFixedWidth(90)
         self.plot_fig.clicked.connect(self.plotFigure)
         Result_additional_layout_3.addWidget(self.plot_fig)
         
@@ -285,27 +297,25 @@ class Widget(QWidget):
         fname_label = QLabel("File Name")
         self.export_file_name = QLineEdit()
         file_name_layout.addWidget(fname_label)
-        file_name_layout.addWidget(self.export_file_name)
-        
-        # GDS options
-        gds_layout = QVBoxLayout()
-        self.Cbox_modify_gds = QCheckBox("Modify GDS")
-        self.Cbox_reverse_pattern = QCheckBox("Reverse Pattern")
-        gds_layout.addWidget(self.Cbox_modify_gds)
-        gds_layout.addWidget(self.Cbox_reverse_pattern)        
+        file_name_layout.addWidget(self.export_file_name)   
         
         # File + GDS layout
         file_gds_layout = QHBoxLayout()
         file_gds_layout.addLayout(file_name_layout)
-        file_gds_layout.addLayout(gds_layout)
+        
+        # SPACING
+        verticalSpacer = QSpacerItem(10, 20)
         
         # Button layout
         button_layout = QHBoxLayout()
         self.lumerical_button = QPushButton("Export to Lumerical")
+        self.lumerical_button.setFixedSize(140, 30)
         self.lumerical_button.clicked.connect(self.export_FDTD)
         self.VirtualLab_button = QPushButton("Export to VirtualLab")
+        self.VirtualLab_button.setFixedSize(140, 30)
         self.VirtualLab_button.clicked.connect(self.export_VirtualLab)
         self.GDS_button = QPushButton("Export to GDS")
+        self.GDS_button.setFixedSize(140, 30)
         self.GDS_button.clicked.connect(self.export_GDS)
         button_layout.addWidget(self.lumerical_button)
         button_layout.addWidget(self.VirtualLab_button)
@@ -314,8 +324,8 @@ class Widget(QWidget):
         # Total layout
         export_layout = QVBoxLayout()
         export_layout.addLayout(file_gds_layout)
+        export_layout.addItem(verticalSpacer)
         export_layout.addLayout(button_layout)
-        
         ExportBox.setLayout(export_layout)
         return ExportBox
     
@@ -416,7 +426,6 @@ class Widget(QWidget):
         if pol == "Dependent":
             for mat in list_checked_materials:
                 # Rect: H-P-L-W-T-phase
-                print(os.path.abspath(os.getcwd()))
                 rst = np.load(f'Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_rectangle.npy')
                 cond1 = rst[:, 0] <= max_H * nm
                 cond2 = rst[:, 1] <= (wl * nm)  / (2 * na)
@@ -695,13 +704,20 @@ class Widget(QWidget):
             # Set Result layout: Rotation Level
             for i in reversed(range(self.Result_additional_layout_2.count())):
                 self.Result_additional_layout_2.itemAt(i).widget().deleteLater()
-            self.Result_additional_layout_2.addWidget(QLabel("Rotation Level"))
+            level_label = QLabel("Level")
+            level_label.setFixedWidth(60)
+            level_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.Result_additional_layout_2.addWidget(level_label)
             self.rotation_level = QLineEdit("8")
+            self.rotation_level.setFixedWidth(60)
+            self.rotation_level.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.Result_additional_layout_2.addWidget(self.rotation_level)
         elif self.pol_dependency.currentText() == "Independent":
             for i in reversed(range(self.Result_additional_layout_2.count())):
                 self.Result_additional_layout_2.itemAt(i).widget().deleteLater()
-            self.showDetailsButton = QPushButton("Show Lens Details")
+            self.showDetailsButton = QPushButton("Details")
+            self.showDetailsButton.setFixedWidth(60)
+            self.showDetailsButton.adjustSize()
             self.showDetailsButton.clicked.connect(self.showDetails)
             self.Result_additional_layout_2.addWidget(self.showDetailsButton)
     
@@ -735,7 +751,7 @@ class Widget(QWidget):
     
     
     def export_FDTD(self):
-        fname = "Export/" + self.export_file_name.text() + ".lsf"
+        fname = self.exportdir + self.export_file_name.text() + ".lsf"
         f = open(fname, 'w')
         D = float(self.dEntry.text()) * 1e-6; fl = float(self.fEntry.text()) * 1e-6; lam = int(self.wlValue.currentText()) * 1e-9
         if self.pol_dependency.currentText() == "Dependent":
@@ -894,13 +910,13 @@ class Widget(QWidget):
                         export_phase[i, j] = phase_meta[i,j]
                         export_T[i, j] = rst_ar[metaatom_idx_2d[i, j], idx_T]
         
-        f_phase = "Export/" + self.export_file_name.text() + "_phase.txt"
+        f_phase = self.exportdir + self.export_file_name.text() + "_phase.txt"
         np.savetxt(f_phase, export_phase, fmt='%.4f', delimiter='\t')
-        f_T = "Export/" + self.export_file_name.text() + "_abs^2.txt"
+        f_T = self.exportdir + self.export_file_name.text() + "_abs^2.txt"
         np.savetxt(f_T, export_T, fmt='%.4f', delimiter='\t')
     
     def export_GDS(self):
-        fname = "Export/" + self.export_file_name.text() + ".txt"
+        fname = self.exportdir + self.export_file_name.text() + ".txt"
         D = float(self.dEntry.text()) * 1e-6; f = float(self.fEntry.text()) * 1e-6; lam = int(self.wlValue.currentText()) * 1e-9
         f = open(fname, 'w')
         f.write(f'HEADER 3;\n')
@@ -909,6 +925,7 @@ class Widget(QWidget):
         f.write(f'UNITS 1.000000e+000 1.000000e-009;\n')
         f.write(f'BGNSTR;\n')
         f.write(f'STRNAME {fname[:-4]};\n')
+
         if self.pol_dependency.currentText() == "Dependent":
             rst_ar, key, P = self.Dependent_resultselection('to export.')
             cpval = self.polValue.currentText()

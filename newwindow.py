@@ -11,7 +11,7 @@ class DetailWindow(QWidget):
         self.meta_array = metaatomindexArray
         self.meta_list = metaatomlist
         self.cocross = cocross
-        self.setGeometry(500, 300, 500, 600)
+        self.setGeometry(1200, 300, 500, 800)
         
         layout = QVBoxLayout()
         arrayBox = QGroupBox('Metalens Array')
