@@ -417,7 +417,7 @@ class Widget(QWidget):
             for mat in list_checked_materials:
                 # Rect: H-P-L-W-T-phase
                 print(os.path.abspath(os.getcwd()))
-                rst = np.load(f'../../Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_rectangle.npy')
+                rst = np.load(f'Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_rectangle.npy')
                 cond1 = rst[:, 0] <= max_H * nm
                 cond2 = rst[:, 1] <= (wl * nm)  / (2 * na)
                 cond3 = np.all(rst[:, 0].reshape(-1, 1) / rst[:, [2, 3]] <= max_AR, axis=1)
@@ -436,7 +436,7 @@ class Widget(QWidget):
                     rst_total = np.zeros((0, 6))
                     for shape in ['circle', 'square']:  
                         # rst: H-P-R(X)-T-phase-shape(1 for circle 2for square)
-                        rst = np.load(f'../../Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_{shape}.npy')
+                        rst = np.load(f'Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_{shape}.npy')
                         rst_shape = np.ones_like(rst[:, 2]) if shape == 'circle' else 2 * np.ones_like(rst[:, 2])
                         rst = np.concatenate((rst, rst_shape.reshape(-1, 1)), axis=1)
                         rst_total = np.concatenate((rst_total, rst), axis=0)
@@ -471,7 +471,7 @@ class Widget(QWidget):
             elif co_cross == 'Cross-pol':
                 for mat in list_checked_materials:
                     # Rect: H-P-L-W-Tr-Tl-phase
-                    rst_ar = np.load(f'../../Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_rectangle.npy')
+                    rst_ar = np.load(f'Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_rectangle.npy')
                     cond1 = rst_ar[:, 0] <= max_H * nm
                     cond2 = rst_ar[:, 1] <= (wl * nm)  / (2 * na)
                     cond3 = np.all(rst_ar[:, 0].reshape(-1, 1) / rst_ar[:, [2, 3]] <= max_AR, axis=1)
@@ -735,7 +735,7 @@ class Widget(QWidget):
     
     
     def export_FDTD(self):
-        fname = "../../Export/" + self.export_file_name.text() + ".lsf"
+        fname = "Export/" + self.export_file_name.text() + ".lsf"
         f = open(fname, 'w')
         D = float(self.dEntry.text()) * 1e-6; fl = float(self.fEntry.text()) * 1e-6; lam = int(self.wlValue.currentText()) * 1e-9
         if self.pol_dependency.currentText() == "Dependent":
@@ -894,13 +894,13 @@ class Widget(QWidget):
                         export_phase[i, j] = phase_meta[i,j]
                         export_T[i, j] = rst_ar[metaatom_idx_2d[i, j], idx_T]
         
-        f_phase = "../../Export/" + self.export_file_name.text() + "_phase.txt"
+        f_phase = "Export/" + self.export_file_name.text() + "_phase.txt"
         np.savetxt(f_phase, export_phase, fmt='%.4f', delimiter='\t')
-        f_T = "../../Export/" + self.export_file_name.text() + "_abs^2.txt"
+        f_T = "Export/" + self.export_file_name.text() + "_abs^2.txt"
         np.savetxt(f_T, export_T, fmt='%.4f', delimiter='\t')
     
     def export_GDS(self):
-        fname = "../../Export/" + self.export_file_name.text() + ".txt"
+        fname = "Export/" + self.export_file_name.text() + ".txt"
         D = float(self.dEntry.text()) * 1e-6; f = float(self.fEntry.text()) * 1e-6; lam = int(self.wlValue.currentText()) * 1e-9
         f = open(fname, 'w')
         f.write(f'HEADER 3;\n')

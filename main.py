@@ -1,8 +1,12 @@
 from PySide6.QtWidgets import QApplication
 from widget import Widget
 import sys
-import numpy as np
+import os
 
+try: 
+    os.chdir(sys._MEIPASS)
+except:
+    os.chdir(os.getcwd())
 
 app = QApplication(sys.argv)
 
