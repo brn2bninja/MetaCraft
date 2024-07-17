@@ -13,7 +13,10 @@ class Widget(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("MetaCraft")
-        self.setWindowIcon(QIcon("appicon.png"))
+        if os.path.exists("appicon.png"):
+            self.setWindowIcon(QIcon("appicon.png"))
+        else:
+            self.setWindowIcon(QIcon("../../../appicon.png"))
         self.font = QFont("Times", 10.5)
         self.setFont(self.font)
         self.linewidth = 100
@@ -21,6 +24,8 @@ class Widget(QWidget):
         self.order_nfd = [0, 1, 2]
         self.fnum = 4
         self.exportdir = "Export/" if os.path.exists("Export/") else "../../../Export/"
+        self.matdir = "Materials/" if os.path.exists("Materials/") else "../../../Materials/"
+        self.set_wl_mat_user()
         self.sorted = False
         
         # 1. Groupbox for metalens design parameters
@@ -70,6 +75,40 @@ class Widget(QWidget):
         layout_total.addWidget(ExportBox)
         self.setLayout(layout_total)
     
+    
+    def set_wl_mat_user(self):
+        # Wave domain
+        self.wl_vis = [str(i) for i in range(400, 701, 5)] + ["532", "632.8"]
+        self.wl_nir = ["900", "940", "980", "1550"]
+        self.wl_uv =  ["248", "266", "325", "384"]
+        
+        # Material
+        self.mat_uv =  ["Select All", "SiNx (High)", "SiNx (Mid)", "SiNx (Low)", "ZrO2 (PER)"]
+        self.mat_vis = ["Select All", "a-Si (Vis)", "TiO2", "TiO2 (PER)", "Si (PER)"]
+        self.mat_nir = ["Select All", "a-Si (NIR)", "Si (PER)"]
+        
+        list_all_file = os.listdir(self.matdir)
+        # ex): NIR_userMade-a-Si (NIR)_940_rectangle.npy
+        user_file = [f for f in list_all_file if "userMade" in f]
+        if len(user_file) != 0:
+            for uf in user_file:
+                if uf.split('_')[0] == "UV":
+                    self.wl_uv.append(uf.split('_')[2])
+                    self.wl_uv = list(dict.fromkeys(self.wl_uv))
+                    self.mat_uv.append(uf.split('_')[1])
+                elif uf.split('_')[0] == "Vis":
+                    self.wl_vis.append(uf.split('_')[2])
+                    self.wl_vis = list(dict.fromkeys(self.wl_vis))
+                    self.mat_vis.append(uf.split('_')[1])
+                elif uf.split('_')[0] == "NIR":
+                    self.wl_nir.append(uf.split('_')[2])
+                    self.wl_nir = list(dict.fromkeys(self.wl_nir))
+                    self.mat_nir.append(uf.split('_')[1])
+        
+        self.wl_vis = sorted(self.wl_vis, key=lambda x: float(x))
+        self.wl_nir = sorted(self.wl_nir, key=lambda x: float(x))
+        self.wl_uv = sorted(self.wl_uv, key=lambda x: float(x))
+    
     def selectWave(self):
         # Wavelength label
         wlLabel = QLabel("Wavelength (nm)")
@@ -82,22 +121,18 @@ class Widget(QWidget):
         # Combobox for wavelength value
         self.wlValue = QComboBox(self)
         self.wlValue.setFixedWidth(60)
-        wl_vis = [str(i) for i in range(400, 701, 5)] + ["532", "632.8"]
-        wl_vis.sort()
-        wl_nir = ["900", "940", "980", "1550"]
-        wl_uv =  ["248", "266", "325", "384"]
-        self.wlValue.addItems(wl_vis)
+        self.wlValue.addItems(self.wl_vis)
         def update_wlValue():
             selected_domain = self.wlDomain.currentText()
             if selected_domain == "Visible":
                 self.wlValue.clear()
-                self.wlValue.addItems(wl_vis)
+                self.wlValue.addItems(self.wl_vis)
             elif selected_domain == "Near Infrared":
                 self.wlValue.clear()
-                self.wlValue.addItems(wl_nir)
+                self.wlValue.addItems(self.wl_nir)
             elif selected_domain == "Ultra Violet":
                 self.wlValue.clear()
-                self.wlValue.addItems(wl_uv)
+                self.wlValue.addItems(self.wl_uv)
         self.wlDomain.currentTextChanged.connect(update_wlValue)
         
         wave_layout = QHBoxLayout()
@@ -201,38 +236,50 @@ class Widget(QWidget):
     
     def selectMaterial(self):
         MaterialCheckBox = QGroupBox("Material Selection")
-        mat_uv = ["Select All", "SiNx (High)", "SiNx (Mid)", "SiNx (Low)", "ZrO2 (PER)"]
-        mat_vis = ["Select All", "a-Si (Vis)", "TiO2", "TiO2 (PER)", "Si (PER)"]
-        mat_nir = ["Select All", "a-Si (NIR)", "Si (PER)"]
-        
-        self.mat_layout = QVBoxLayout()
-        mat_selected = mat_vis
-        for mat in mat_selected:
-            self.mat_layout.addWidget(QCheckBox(mat))
-        
-        def update_mat():
-            num_w = self.mat_layout.count()
-            for i in range(num_w):
-                self.mat_layout.itemAt(i).widget().deleteLater()
-            if self.wlDomain.currentText() == "Ultra Violet":
-                mat_selected = mat_uv
-            elif self.wlDomain.currentText() == "Visible":
-                mat_selected = mat_vis
-            elif self.wlDomain.currentText() == "Near Infrared":
-                mat_selected = mat_nir
-            
-            for mat in mat_selected:
-                self.mat_layout.addWidget(QCheckBox(mat))
-        self.wlDomain.currentTextChanged.connect(update_mat)
-        
-        def click_all():
-            if self.mat_layout.itemAt(0).widget().isChecked():
+        def unclick_selectall(state):
+            if (state == Qt.CheckState.Unchecked) and self.mat_layout.itemAt(0).widget().isChecked():
+                checked_idx = [i for i in range(1, self.mat_layout.count()) if self.mat_layout.itemAt(i).widget().isChecked()]
+                self.mat_layout.itemAt(0).widget().setChecked(False)
+                for i in range(1, self.mat_layout.count()):
+                    if i in checked_idx:
+                        self.mat_layout.itemAt(i).widget().setChecked(True)
+                    
+        def click_all(state):
+            if state == Qt.CheckState.Checked:
                 for i in range(1, self.mat_layout.count()):
                     self.mat_layout.itemAt(i).widget().setChecked(True)
             else:
                 for i in range(1, self.mat_layout.count()):
                     self.mat_layout.itemAt(i).widget().setChecked(False)
-        self.mat_layout.itemAt(0).widget().checkStateChanged.connect(click_all)
+        
+        self.mat_layout = QVBoxLayout()
+        mat_selected = self.mat_vis
+        for i, mat in enumerate(mat_selected):
+            self.mat_layout.addWidget(QCheckBox(mat))
+            if i == 0:
+                self.mat_layout.itemAt(i).widget().checkStateChanged.connect(click_all)
+            else:
+                self.mat_layout.itemAt(i).widget().checkStateChanged.connect(unclick_selectall)
+        
+                    
+        def update_mat():
+            # Delete all the widgets in the layout
+            while (child := self.mat_layout.takeAt(0)) != None:
+                child.widget().deleteLater()
+            if self.wlDomain.currentText() == "Ultra Violet":
+                mat_selected = self.mat_uv
+            elif self.wlDomain.currentText() == "Visible":
+                mat_selected = self.mat_vis
+            elif self.wlDomain.currentText() == "Near Infrared":
+                mat_selected = self.mat_nir
+            for i, mat in enumerate(mat_selected):
+                self.mat_layout.addWidget(QCheckBox(mat))
+                if i == 0:
+                    self.mat_layout.itemAt(i).widget().checkStateChanged.connect(click_all)
+                else:
+                    self.mat_layout.itemAt(i).widget().checkStateChanged.connect(unclick_selectall)
+        
+        self.wlDomain.currentTextChanged.connect(update_mat)
         MaterialCheckBox.setLayout(self.mat_layout)
         
         return MaterialCheckBox
@@ -257,7 +304,7 @@ class Widget(QWidget):
             elif selected_dependency == "Independent":
                 self.sort_choice.clear()
                 self.sort_choice.addItems(["Transmittance", "FoM (fast)", "FoM (exact)"])
-                self.result.setSelectionMode(QAbstractItemView.ContiguousSelection)
+                self.result.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.pol_dependency.currentTextChanged.connect(update_sortingmethod)
         
         self.sort_button = QPushButton("Sort")
@@ -306,16 +353,22 @@ class Widget(QWidget):
         # SPACING
         verticalSpacer = QSpacerItem(10, 20)
         
+        # GDS Option
+        self.reverse_gds = QCheckBox("Reverse GDS")
+        
         # Button layout
         button_layout = QHBoxLayout()
         self.lumerical_button = QPushButton("Export to Lumerical")
-        self.lumerical_button.setFixedSize(140, 30)
+        self.lumerical_button.setStyleSheet("border-radius: 8px; border: 1px solid gray; background-color: white; font: 12px; color: black;")
+        self.lumerical_button.setFixedHeight(25)
         self.lumerical_button.clicked.connect(self.export_FDTD)
         self.VirtualLab_button = QPushButton("Export to VirtualLab")
-        self.VirtualLab_button.setFixedSize(140, 30)
+        self.VirtualLab_button.setStyleSheet("border-radius: 8px; border: 1px solid gray; background-color: white; font: 12px; color: black;")
+        self.VirtualLab_button.setFixedHeight(25)
         self.VirtualLab_button.clicked.connect(self.export_VirtualLab)
         self.GDS_button = QPushButton("Export to GDS")
-        self.GDS_button.setFixedSize(140, 30)
+        self.GDS_button.setStyleSheet("border-radius: 8px; border: 1px solid gray; background-color: white; font: 12px; color: black;")
+        self.GDS_button.setFixedHeight(25)
         self.GDS_button.clicked.connect(self.export_GDS)
         button_layout.addWidget(self.lumerical_button)
         button_layout.addWidget(self.VirtualLab_button)
@@ -325,6 +378,7 @@ class Widget(QWidget):
         export_layout = QVBoxLayout()
         export_layout.addLayout(file_gds_layout)
         export_layout.addItem(verticalSpacer)
+        export_layout.addWidget(self.reverse_gds)
         export_layout.addLayout(button_layout)
         ExportBox.setLayout(export_layout)
         return ExportBox
@@ -408,12 +462,14 @@ class Widget(QWidget):
         nm = 1e-9
         num_gap = 90
         
-        num_checked_mat = 0
         list_checked_materials = []
-        for i in range(self.mat_layout.count()):
-            if self.mat_layout.itemAt(i).widget().isChecked():
-                num_checked_mat += 1
+        if self.mat_layout.itemAt(0).widget().isChecked():
+            for i in range(1, self.mat_layout.count()):
                 list_checked_materials.append(self.mat_layout.itemAt(i).widget().text())
+        else:
+            for i in range(1, self.mat_layout.count()):
+                if self.mat_layout.itemAt(i).widget().isChecked():
+                    list_checked_materials.append(self.mat_layout.itemAt(i).widget().text())
         if wl_domain == "Ultra Violet":
             str_wl_domain = "UV"
         elif wl_domain == "Visible":
@@ -422,11 +478,13 @@ class Widget(QWidget):
             str_wl_domain = "NIR"
         
         selected_rst_dict = {}
-        list_for_print = []
         if pol == "Dependent":
             for mat in list_checked_materials:
                 # Rect: H-P-L-W-T-phase
-                rst = np.load(f'Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_rectangle.npy')
+                try:
+                    rst = np.load(f'{self.matdir}{str_wl_domain}_{mat.replace(" ","")}_{wl}_rectangle.npy')
+                except FileNotFoundError:
+                    continue
                 cond1 = rst[:, 0] <= max_H * nm
                 cond2 = rst[:, 1] <= (wl * nm)  / (2 * na)
                 cond3 = np.all(rst[:, 0].reshape(-1, 1) / rst[:, [2, 3]] <= max_AR, axis=1)
@@ -445,7 +503,10 @@ class Widget(QWidget):
                     rst_total = np.zeros((0, 6))
                     for shape in ['circle', 'square']:  
                         # rst: H-P-R(X)-T-phase-shape(1 for circle 2for square)
-                        rst = np.load(f'Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_{shape}.npy')
+                        try:
+                            rst = np.load(f'{self.matdir}{str_wl_domain}_{mat.replace(" ","")}_{wl}_{shape}.npy')
+                        except FileNotFoundError:
+                            continue
                         rst_shape = np.ones_like(rst[:, 2]) if shape == 'circle' else 2 * np.ones_like(rst[:, 2])
                         rst = np.concatenate((rst, rst_shape.reshape(-1, 1)), axis=1)
                         rst_total = np.concatenate((rst_total, rst), axis=0)
@@ -480,7 +541,10 @@ class Widget(QWidget):
             elif co_cross == 'Cross-pol':
                 for mat in list_checked_materials:
                     # Rect: H-P-L-W-Tr-Tl-phase
-                    rst_ar = np.load(f'Materials/{str_wl_domain}_{mat.replace(" ","")}_{wl}_rectangle.npy')
+                    try:
+                        rst_ar = np.load(f'{self.matdir}{str_wl_domain}_{mat.replace(" ","")}_{wl}_rectangle.npy')
+                    except FileNotFoundError:
+                        continue
                     cond1 = rst_ar[:, 0] <= max_H * nm
                     cond2 = rst_ar[:, 1] <= (wl * nm)  / (2 * na)
                     cond3 = np.all(rst_ar[:, 0].reshape(-1, 1) / rst_ar[:, [2, 3]] <= max_AR, axis=1)
@@ -508,10 +572,9 @@ class Widget(QWidget):
                             # Add list to result
                             self.result.addItems(list_for_print)
                             self.result.addItem('\n' + '-' * num_gap + '\n')
-                            
             
         # Display the result
-        if list_for_print == []:
+        if self.result.count() == 0:
             self.result.addItem("No result found")
         elif pol == "Independent":
             self.result.takeItem(self.result.count()-1)
@@ -521,6 +584,7 @@ class Widget(QWidget):
         # Update selected dictionary & self.sorted
         self.sorted = False
         self.selected_rst_dict = selected_rst_dict
+                                      
                                                  
     def sortButtonClicked(self):
         # Change status
@@ -617,9 +681,10 @@ class Widget(QWidget):
                 self.result.addItems(list_for_print)
             
         # Display the result
-        if list_for_print == []:
+        if self.result.count() == 0:
             self.result.addItem("No result found")
         self.setWindowTitle("MetaCraft")
+        
         # Update self.sorted
         self.sorted = True
         
@@ -751,6 +816,7 @@ class Widget(QWidget):
     
     
     def export_FDTD(self):
+        self.setWindowTitle("MetaCraft (Now Exporting lsf file...)")
         fname = self.exportdir + self.export_file_name.text() + ".lsf"
         f = open(fname, 'w')
         D = float(self.dEntry.text()) * 1e-6; fl = float(self.fEntry.text()) * 1e-6; lam = int(self.wlValue.currentText()) * 1e-9
@@ -874,9 +940,11 @@ class Widget(QWidget):
         f.write(f'addjob("{fname+"_x"}");\n'); f.write(f'addjob("{fname+"_y"}");\n')
         f.write(f'runjobs;\n')
         f.close()
+        self.setWindowTitle("MetaCraft")
         
     
     def export_VirtualLab(self):
+        self.setWindowTitle("MetaCraft (Now Exporting VirtualLab...)")
         D = float(self.dEntry.text()) * 1e-6
 
         if self.pol_dependency.currentText() == "Dependent":
@@ -892,6 +960,8 @@ class Widget(QWidget):
                         continue
                     export_phase[i, j] = phase_meta[i,j] + rst_ar[5]
                     export_T[i, j] = rst_ar[4]
+            export_phase[export_phase > math.pi] -= 2 * math.pi
+            export_phase[export_phase < -math.pi] += 2 * math.pi
                     
         elif self.pol_dependency.currentText() == "Independent":
             rst_ar, key, P = self.Independent_resultselection('to export.')
@@ -914,8 +984,13 @@ class Widget(QWidget):
         np.savetxt(f_phase, export_phase, fmt='%.4f', delimiter='\t')
         f_T = self.exportdir + self.export_file_name.text() + "_abs^2.txt"
         np.savetxt(f_T, export_T, fmt='%.4f', delimiter='\t')
+        self.setWindowTitle("MetaCraft")
+        
     
     def export_GDS(self):
+        # Change status
+        self.setWindowTitle("MetaCraft (Now Exporting GDS file...)")
+        
         fname = self.exportdir + self.export_file_name.text() + ".txt"
         D = float(self.dEntry.text()) * 1e-6; f = float(self.fEntry.text()) * 1e-6; lam = int(self.wlValue.currentText()) * 1e-9
         f = open(fname, 'w')
@@ -957,7 +1032,7 @@ class Widget(QWidget):
                     f.write(f'LAYER 46;\n')
                     f.write(f'DATATYPE 46;\n')
                     f.write(f'XY\n')                    
-                    if self.Cbox_reverse_pattern.isChecked():
+                    if self.reverse_gds.isChecked():
                         f.write(f'{round(x1*math.cos(alpha) - y1*math.sin(alpha) + x)}\t:\t{round(y + P/2*1e9)}\n')
                         f.write(f'{round(x1*math.cos(alpha) - y1*math.sin(alpha) + x)}\t:\t{round(x1*math.sin(alpha) + y1*math.cos(alpha) + y)}\n')
                         f.write(f'{round(x2*math.cos(alpha) - y2*math.sin(alpha) + x)}\t:\t{round(x2*math.sin(alpha) + y2*math.cos(alpha) + y)}\n')
@@ -1012,7 +1087,7 @@ class Widget(QWidget):
                                     x_temp = x_temp-l*math.cos(theta*k); y_temp = y_temp-l*math.sin(theta*k)
                                 f.write(f'{round(x+l/2)}\t:\t{round(y+atom_D/2)}\n')
                                 f.write(f'{round(x)}\t:\t{round(y+atom_D/2)}\n')
-                                if self.Cbox_reverse_pattern.isChecked():
+                                if self.reverse_gds.isChecked():
                                     f.write(f'{round(x)}\t:\t{round(y + P/2*1e9)}\n')
                                     f.write(f'{round(x + P/2*1e9)}\t:\t{round(y + P/2*1e9)}\n')
                                     f.write(f'{round(x + P/2*1e9)}\t:\t{round(y - P/2*1e9)}\n')
@@ -1030,7 +1105,7 @@ class Widget(QWidget):
                                 f.write(f'{round(x + atom_L/2)}\t:\t{round(y - atom_L/2)}\n')
                                 f.write(f'{round(x + atom_L/2)}\t:\t{round(y + atom_L/2)}\n')
                                 f.write(f'{round(x)}\t:\t{round(y + atom_L/2)}\n')
-                                if self.Cbox_reverse_pattern.isChecked():
+                                if self.reverse_gds.isChecked():
                                     f.write(f'{round(x)}\t:\t{round(y + P/2*1e9)}\n')
                                     f.write(f'{round(x + P/2*1e9)}\t:\t{round(y + P/2*1e9)}\n')
                                     f.write(f'{round(x + P/2*1e9)}\t:\t{round(y - P/2*1e9)}\n')
@@ -1058,7 +1133,7 @@ class Widget(QWidget):
                             f.write(f'{round(x + x2)}\t:\t{round(y + y2)}\n')
                             f.write(f'{round(x + x3)}\t:\t{round(y + y3)}\n')
                             f.write(f'{round(x + x4)}\t:\t{round(y + y4)}\n')
-                            if self.Cbox_reverse_pattern.isChecked():
+                            if self.reverse_gds.isChecked():
                                 f.write(f'{round(x)}\t:\t{round(y + yh)}\n')
                                 f.write(f'{round(x)}\t:\t{round(y + P/2*1e9)}\n')
                                 f.write(f'{round(x + P/2*1e9)}\t:\t{round(y + P/2*1e9)}\n')
@@ -1073,6 +1148,7 @@ class Widget(QWidget):
         f.write(f'ENDSTR\n')
         f.write(f'ENDLIB\n')
         f.close()
+        self.setWindowTitle("MetaCraft")
     
         
     def Dependent_resultselection(self, warningstr):
