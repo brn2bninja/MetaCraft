@@ -648,7 +648,6 @@ class Widget(QWidget):
             elif sort_choice == "FoM (exact)":
                 p_idx = 4 if self.polValue.currentText() == 'Co-pol' else 5
                 for key, rst_ar in rst_dict.items():
-                    print(key); print(rst_ar)
                     P = int(key.split("-")[2]) * 1e-9; D = float(self.dEntry.text()) * 1e-6; nx = math.floor(D / P)
                     phase_ideal = self.gen_phase_map(P, D, num=nx)
                     phase_meta = self.set_metalens(rst_ar, phase_ideal)
