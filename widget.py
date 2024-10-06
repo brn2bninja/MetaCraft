@@ -656,7 +656,7 @@ class Widget(QWidget):
                     for i in range(half_nx):
                         for j in range(i, half_nx):
                             if ((i-(nx-1)/2)**2 + (j-(nx-1)/2)**2 <= (nx/2)**2):    # Within the circle, and one half of the quadrant
-                                phase_within_range = [p for p in rst_ar[:, p_idx] if np.abs(phase_ideal[i,j]-p) < np.pi/4]
+                                phase_within_range = [p for p in rst_ar[:, p_idx] if np.abs(phase_ideal[i,j]-p) < np.pi/8]
                                 for phase_k in phase_within_range:     # Replace phase
                                     temp_phase_meta = np.copy(phase_meta)
                                     idx1 = np.array([i,      i, j,      j, nx-1-i, nx-1-i, nx-1-j, nx-1-j])
@@ -674,7 +674,8 @@ class Widget(QWidget):
                     new_key = f'{key[:-(len(numel)+1)]}-{float(meanAR) :.1f}-{float(meanT) :.1f}-{float(FOM) :.4f}-{numel}'
                     sorted_rst_dict[new_key] = rst_ar
                 self.sorted_rst_dict = OrderedDict(sorted(sorted_rst_dict.items(), key=lambda x: float(x[0].split('-')[5]), reverse=True))
-                list_for_print = [f'{key.split("-")[0]},  H: {key.split("-")[1]} nm,  P: {key.split("-")[2]} nm,  mean AR: {key.split("-")[3]},  mean T: {key.split("-")[4]} %,  FOM: {key.split("-")[5]}' for key in sorted_rst_dict.keys()]
+                print(self.sorted_rst_dict.keys())
+                list_for_print = [f'{key.split("-")[0]},  H: {key.split("-")[1]} nm,  P: {key.split("-")[2]} nm,  mean AR: {key.split("-")[3]},  mean T: {key.split("-")[4]} %,  FOM: {key.split("-")[5]}' for key in self.sorted_rst_dict.keys()]
                 self.result.addItems(list_for_print)
             
         # Display the result
