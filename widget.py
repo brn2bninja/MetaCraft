@@ -17,12 +17,16 @@ class Widget(QWidget):
             self.setWindowIcon(QIcon("appicon.png"))
         else:
             self.setWindowIcon(QIcon("../../../appicon.png"))
+        self.setWindowIcon(QIcon("appicon.png")) if os.path.exists("appicon.png") else self.setWindowIcon(QIcon("../../appicon.png")) 
         self.font = QFont("Times", 10.5)
         self.setFont(self.font)
         self.linewidth = 100
         self.setGeometry(700, 500, 580, 700)
         self.order_nfd = [0, 1, 2]
         self.fnum = 4
+        self.exportdir = "Export/" if os.path.exists("Export/") else "../../../Export/"
+        self.matdir = "Materials/" if os.path.exists("Materials/") else "../../../Materials/"
+        self.set_wl_mat_user()
         self.exportdir = "Export/" if os.path.exists("Export/") else "../../../Export/"
         self.matdir = "Materials/" if os.path.exists("Materials/") else "../../../Materials/"
         self.set_wl_mat_user()
@@ -109,6 +113,40 @@ class Widget(QWidget):
         self.wl_nir = sorted(self.wl_nir, key=lambda x: float(x))
         self.wl_uv = sorted(self.wl_uv, key=lambda x: float(x))
     
+    
+    def set_wl_mat_user(self):
+        # Wave domain
+        self.wl_vis = [str(i) for i in range(400, 701, 5)] + ["532", "632.8"]
+        self.wl_nir = ["900", "940", "980", "1550"]
+        self.wl_uv =  ["248", "266", "325", "384"]
+        
+        # Material
+        self.mat_uv =  ["Select All", "SiNx (High)", "SiNx (Mid)", "SiNx (Low)", "ZrO2 (PER)"]
+        self.mat_vis = ["Select All", "a-Si (Vis)", "TiO2", "TiO2 (PER)", "Si (PER)"]
+        self.mat_nir = ["Select All", "a-Si (NIR)", "Si (PER)"]
+        
+        list_all_file = os.listdir(self.matdir)
+        # ex): NIR_userMade-a-Si (NIR)_940_rectangle.npy
+        user_file = [f for f in list_all_file if "userMade" in f]
+        if len(user_file) != 0:
+            for uf in user_file:
+                if uf.split('_')[0] == "UV":
+                    self.wl_uv.append(uf.split('_')[2])
+                    self.wl_uv = list(dict.fromkeys(self.wl_uv))
+                    self.mat_uv.append(uf.split('_')[1])
+                elif uf.split('_')[0] == "Vis":
+                    self.wl_vis.append(uf.split('_')[2])
+                    self.wl_vis = list(dict.fromkeys(self.wl_vis))
+                    self.mat_vis.append(uf.split('_')[1])
+                elif uf.split('_')[0] == "NIR":
+                    self.wl_nir.append(uf.split('_')[2])
+                    self.wl_nir = list(dict.fromkeys(self.wl_nir))
+                    self.mat_nir.append(uf.split('_')[1])
+        
+        self.wl_vis = sorted(self.wl_vis, key=lambda x: float(x))
+        self.wl_nir = sorted(self.wl_nir, key=lambda x: float(x))
+        self.wl_uv = sorted(self.wl_uv, key=lambda x: float(x))
+    
     def selectWave(self):
         # Wavelength label
         wlLabel = QLabel("Wavelength (nm)")
@@ -117,9 +155,12 @@ class Widget(QWidget):
         self.wlDomain = QComboBox(self)
         self.wlDomain.addItems(["Visible", "Near Infrared", "Ultra Violet"])
         self.wlDomain.setFixedWidth(130)
+        self.wlDomain.setFixedWidth(130)
         
         # Combobox for wavelength value
         self.wlValue = QComboBox(self)
+        self.wlValue.setFixedWidth(60)
+        self.wlValue.addItems(self.wl_vis)
         self.wlValue.setFixedWidth(60)
         self.wlValue.addItems(self.wl_vis)
         def update_wlValue():
@@ -127,11 +168,14 @@ class Widget(QWidget):
             if selected_domain == "Visible":
                 self.wlValue.clear()
                 self.wlValue.addItems(self.wl_vis)
+                self.wlValue.addItems(self.wl_vis)
             elif selected_domain == "Near Infrared":
                 self.wlValue.clear()
                 self.wlValue.addItems(self.wl_nir)
+                self.wlValue.addItems(self.wl_nir)
             elif selected_domain == "Ultra Violet":
                 self.wlValue.clear()
+                self.wlValue.addItems(self.wl_uv)
                 self.wlValue.addItems(self.wl_uv)
         self.wlDomain.currentTextChanged.connect(update_wlValue)
         
@@ -148,10 +192,12 @@ class Widget(QWidget):
         self.pol_dependency = QComboBox(self)
         self.pol_dependency.addItems(["Dependent", "Independent"])
         self.pol_dependency.setFixedWidth(130)
+        self.pol_dependency.setFixedWidth(130)
         
         # Combobox for polarization value
         self.polValue = QComboBox(self)
         self.polValue.addItems(["RCP", "LCP"])
+        self.polValue.setFixedWidth(60)
         self.polValue.setFixedWidth(60)
         def update_polValue():
             selected_dependency = self.pol_dependency.currentText()
@@ -161,11 +207,15 @@ class Widget(QWidget):
                 self.polValue.addItems(["RCP", "LCP"])
                 self.polValue.setFixedWidth(60)
                 self.pol_dependency.setFixedWidth(130)
+                self.polValue.setFixedWidth(60)
+                self.pol_dependency.setFixedWidth(130)
                 
             elif selected_dependency == "Independent":
                 # Set polarization
                 self.polValue.clear()
                 self.polValue.addItems(["Co-pol", "Cross-pol"])
+                self.polValue.setFixedWidth(80)
+                self.pol_dependency.setFixedWidth(110)
                 self.polValue.setFixedWidth(80)
                 self.pol_dependency.setFixedWidth(110)
         self.pol_dependency.currentTextChanged.connect(update_polValue)
@@ -251,11 +301,34 @@ class Widget(QWidget):
             else:
                 for i in range(1, self.mat_layout.count()):
                     self.mat_layout.itemAt(i).widget().setChecked(False)
+        def unclick_selectall(state):
+            if (state == Qt.CheckState.Unchecked) and self.mat_layout.itemAt(0).widget().isChecked():
+                checked_idx = [i for i in range(1, self.mat_layout.count()) if self.mat_layout.itemAt(i).widget().isChecked()]
+                self.mat_layout.itemAt(0).widget().setChecked(False)
+                for i in range(1, self.mat_layout.count()):
+                    if i in checked_idx:
+                        self.mat_layout.itemAt(i).widget().setChecked(True)
+                    
+        def click_all(state):
+            if state == Qt.CheckState.Checked:
+                for i in range(1, self.mat_layout.count()):
+                    self.mat_layout.itemAt(i).widget().setChecked(True)
+            else:
+                for i in range(1, self.mat_layout.count()):
+                    self.mat_layout.itemAt(i).widget().setChecked(False)
         
         self.mat_layout = QVBoxLayout()
         mat_selected = self.mat_vis
         for i, mat in enumerate(mat_selected):
+        mat_selected = self.mat_vis
+        for i, mat in enumerate(mat_selected):
             self.mat_layout.addWidget(QCheckBox(mat))
+            if i == 0:
+                self.mat_layout.itemAt(i).widget().checkStateChanged.connect(click_all)
+            else:
+                self.mat_layout.itemAt(i).widget().checkStateChanged.connect(unclick_selectall)
+        
+                    
             if i == 0:
                 self.mat_layout.itemAt(i).widget().checkStateChanged.connect(click_all)
             else:
@@ -266,14 +339,27 @@ class Widget(QWidget):
             # Delete all the widgets in the layout
             while (child := self.mat_layout.takeAt(0)) != None:
                 child.widget().deleteLater()
+            # Delete all the widgets in the layout
+            while (child := self.mat_layout.takeAt(0)) != None:
+                child.widget().deleteLater()
             if self.wlDomain.currentText() == "Ultra Violet":
                 mat_selected = self.mat_uv
+                mat_selected = self.mat_uv
             elif self.wlDomain.currentText() == "Visible":
+                mat_selected = self.mat_vis
                 mat_selected = self.mat_vis
             elif self.wlDomain.currentText() == "Near Infrared":
                 mat_selected = self.mat_nir
             for i, mat in enumerate(mat_selected):
+                mat_selected = self.mat_nir
+            for i, mat in enumerate(mat_selected):
                 self.mat_layout.addWidget(QCheckBox(mat))
+                if i == 0:
+                    self.mat_layout.itemAt(i).widget().checkStateChanged.connect(click_all)
+                else:
+                    self.mat_layout.itemAt(i).widget().checkStateChanged.connect(unclick_selectall)
+        
+        self.wlDomain.currentTextChanged.connect(update_mat)
                 if i == 0:
                     self.mat_layout.itemAt(i).widget().checkStateChanged.connect(click_all)
                 else:
@@ -294,6 +380,8 @@ class Widget(QWidget):
         self.sort_choice = QComboBox()
         self.sort_choice.setStyleSheet("color: black; background-color: white")
         self.sort_choice.setFixedWidth(100)
+        self.sort_choice.setStyleSheet("color: black; background-color: white")
+        self.sort_choice.setFixedWidth(100)
         self.sort_choice.addItems(["Transmittance", "FoM"])
         def update_sortingmethod():
             selected_dependency = self.pol_dependency.currentText()
@@ -304,6 +392,7 @@ class Widget(QWidget):
             elif selected_dependency == "Independent":
                 self.sort_choice.clear()
                 self.sort_choice.addItems(["Transmittance", "FoM (fast)", "FoM (exact)"])
+                self.result.setSelectionMode(QAbstractItemView.ExtendedSelection)
                 self.result.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.pol_dependency.currentTextChanged.connect(update_sortingmethod)
         
@@ -319,10 +408,12 @@ class Widget(QWidget):
         Result_additional_layout_1.addWidget(self.sort_choice)
         Result_additional_layout_1.addWidget(self.sort_button)
         Result_additional_layout_1.setAlignment(Qt.AlignLeft)
+        Result_additional_layout_1.setAlignment(Qt.AlignLeft)
         
         self.Result_additional_layout_2 = QHBoxLayout()
         Result_additional_layout_3 = QHBoxLayout()
         self.plot_fig = QPushButton("Plot Figure")
+        self.plot_fig.setFixedWidth(90)
         self.plot_fig.setFixedWidth(90)
         self.plot_fig.clicked.connect(self.plotFigure)
         Result_additional_layout_3.addWidget(self.plot_fig)
@@ -345,10 +436,17 @@ class Widget(QWidget):
         self.export_file_name = QLineEdit()
         file_name_layout.addWidget(fname_label)
         file_name_layout.addWidget(self.export_file_name)   
+        file_name_layout.addWidget(self.export_file_name)   
         
         # File + GDS layout
         file_gds_layout = QHBoxLayout()
         file_gds_layout.addLayout(file_name_layout)
+        
+        # SPACING
+        verticalSpacer = QSpacerItem(10, 20)
+        
+        # GDS Option
+        self.reverse_gds = QCheckBox("Reverse GDS")
         
         # SPACING
         verticalSpacer = QSpacerItem(10, 20)
@@ -650,7 +748,8 @@ class Widget(QWidget):
             
             elif sort_choice == "FoM (exact)":
                 p_idx = 4 if self.polValue.currentText() == 'Co-pol' else 5
-                for key, rst_ar in rst_dict.keys():
+                for key, rst_ar in rst_dict.items():
+                    print(key); print(rst_ar)
                     P = int(key.split("-")[2]) * 1e-9; D = float(self.dEntry.text()) * 1e-6; nx = math.floor(D / P)
                     phase_ideal = self.gen_phase_map(P, D, num=nx)
                     phase_meta = self.set_metalens(rst_ar, phase_ideal)
