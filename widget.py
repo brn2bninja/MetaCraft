@@ -18,7 +18,7 @@ class Widget(QWidget):
         self.setFont(self.font)
         self.linewidth = 100
         self.setGeometry(700, 500, 580, 700)
-        self.order_nfd = [0, 1, 2]
+        self.order_nfd = []
         self.fnum = 4
         self.exportdir = "Export/" if os.path.exists("Export/") else "../../../Export/"
         self.matdir = "Materials/" if os.path.exists("Materials/") else "../../../Materials/"
@@ -385,42 +385,61 @@ class Widget(QWidget):
         na = float(self.naEntry.text())
         f = float(self.fEntry.text())
         D = float(self.dEntry.text())
-        
-        self.order_nfd[0] = 0
-        min_val = min(self.order_nfd[1], self.order_nfd[2]); one_idx = self.order_nfd.index(min_val)
-        max_val = max(self.order_nfd[1], self.order_nfd[2]); two_idx = self.order_nfd.index(max_val)
-        self.order_nfd[one_idx] = 1; self.order_nfd[two_idx] = 2
+        if 'NA' in self.order_nfd:
+            self.order_nfd.remove('NA')
+            self.order_nfd.append('NA')
+        elif self.order_nfd == []:
+            self.order_nfd = ['NA']
+        else:
+            self.order_nfd.append('NA')
 
-        # F was the last to be editted -> Change F
-        if self.order_nfd[1] == 2:
-            F = D / (2 * math.tan(math.asin(na))) if D != 0 and na != 0 else 250e-6
-            self.fEntry.setText(str(round(F, self.fnum)))
-            
-        # D was the last to be editted -> Change D
-        elif self.order_nfd[2] == 2:
-            D = 2 * f * math.tan(math.asin(na)) if f != 0 and na != 0 else 500e-6
-            self.dEntry.setText(str(round(D, self.fnum)))
-    
+        if len(self.order_nfd) == 1:
+            pass
+        elif len(self.order_nfd) == 2:
+            if self.order_nfd[0] == 'D':
+                F = D / (2 * math.tan(math.asin(na))) if D != 0 and na != 0 else 250e-6
+                self.fEntry.setText(str(round(F, self.fnum)))
+            elif self.order_nfd[0] == 'F':
+                D = 2 * f * math.tan(math.asin(na)) if f != 0 and na != 0 else 500e-6
+                self.dEntry.setText(str(round(D, self.fnum)))
+        elif len(self.order_nfd) == 3:
+            if self.order_nfd[0] == 'D':
+                D = 2 * f * math.tan(math.asin(na)) if f != 0 and na != 0 else 500e-6
+                self.dEntry.setText(str(round(D, self.fnum)))
+            elif self.order_nfd[0] == 'F':
+                F = D / (2 * math.tan(math.asin(na))) if D != 0 and na != 0 else 250e-6
+                self.fEntry.setText(str(round(F, self.fnum)))
+        
     @Slot()
     def f_edited(self):   
         na = float(self.naEntry.text())
         f = float(self.fEntry.text())
         D = float(self.dEntry.text())
         
-        self.order_nfd[1] = 0
-        min_val = min(self.order_nfd[2], self.order_nfd[0]); one_idx = self.order_nfd.index(min_val)
-        max_val = max(self.order_nfd[2], self.order_nfd[0]); two_idx = self.order_nfd.index(max_val)
-        self.order_nfd[one_idx] = 1; self.order_nfd[two_idx] = 2
+        if 'F' in self.order_nfd:
+            self.order_nfd.remove('F')
+            self.order_nfd.append('F')
+        elif self.order_nfd == []:
+            self.order_nfd = ['F']
+        else:
+            self.order_nfd.append('F')
 
-        # NA was the last to be editted -> Change NA
-        if self.order_nfd[0] == 2:
-            NA = math.sin(math.atan(D / (2 * f))) if D != 0 and f != 0 else 0.71
-            self.naEntry.setText(str(round(NA, self.fnum)))
-            
-        # D was the last to be editted -> Change D
-        elif self.order_nfd[2] == 2:
-            D = 2 * f * math.tan(math.asin(na)) if f != 0 and na != 0 else 500e-6
-            self.dEntry.setText(str(round(D, self.fnum)))
+        if len(self.order_nfd) == 1:
+            pass
+        elif len(self.order_nfd) == 2:
+            if self.order_nfd[0] == 'D':
+                NA = math.sin(math.atan(D / (2 * f))) if D != 0 and f != 0 else 0.71
+                self.naEntry.setText(str(round(NA, self.fnum)))
+            elif self.order_nfd[0] == 'NA':
+                D = 2 * f * math.tan(math.asin(na)) if f != 0 and na != 0 else 500e-6
+                self.dEntry.setText(str(round(D, self.fnum)))
+        elif len(self.order_nfd) == 3:
+            if self.order_nfd[0] == 'D':
+                D = 2 * f * math.tan(math.asin(na)) if f != 0 and na != 0 else 500e-6
+                self.dEntry.setText(str(round(D, self.fnum)))
+            elif self.order_nfd[0] == 'NA':
+                NA = math.sin(math.atan(D / (2 * f))) if D != 0 and f != 0 else 0.71
+                self.naEntry.setText(str(round(NA, self.fnum)))
     
     @Slot()
     def d_edited(self):   
@@ -428,20 +447,30 @@ class Widget(QWidget):
         f = float(self.fEntry.text())
         D = float(self.dEntry.text())
         
-        self.order_nfd[2] = 0
-        min_val = min(self.order_nfd[0], self.order_nfd[1]); one_idx = self.order_nfd.index(min_val)
-        max_val = max(self.order_nfd[0], self.order_nfd[1]); two_idx = self.order_nfd.index(max_val)
-        self.order_nfd[one_idx] = 1; self.order_nfd[two_idx] = 2
+        if 'D' in self.order_nfd:
+            self.order_nfd.remove('D')
+            self.order_nfd.append('D')
+        elif self.order_nfd == []:
+            self.order_nfd = ['D']
+        else:
+            self.order_nfd.append('D')
 
-        # NA was the last to be editted -> Change NA
-        if self.order_nfd[0] == 2:
-            NA = math.sin(math.atan(D / (2 * f))) if D != 0 and f != 0 else 0.71
-            self.naEntry.setText(str(round(NA, self.fnum)))
-        
-        # F was the last to be editted -> Change F
-        elif self.order_nfd[1] == 2:
-            F = D / (2 * math.tan(math.asin(na))) if D != 0 and na != 0 else 250e-6
-            self.fEntry.setText(str(round(F, self.fnum)))
+        if len(self.order_nfd) == 1:
+            pass
+        elif len(self.order_nfd) == 2:
+            if self.order_nfd[0] == 'F':
+                NA = math.sin(math.atan(D / (2 * f))) if D != 0 and f != 0 else 0.71
+                self.naEntry.setText(str(round(NA, self.fnum)))
+            elif self.order_nfd[0] == 'NA':
+                F = D / (2 * math.tan(math.asin(na))) if D != 0 and na != 0 else 250e-6
+                self.fEntry.setText(str(round(F, self.fnum)))
+        elif len(self.order_nfd) == 3:
+            if self.order_nfd[0] == 'F':
+                F = D / (2 * math.tan(math.asin(na))) if D != 0 and na != 0 else 250e-6
+                self.fEntry.setText(str(round(F, self.fnum)))
+            elif self.order_nfd[0] == 'NA':
+                NA = math.sin(math.atan(D / (2 * f))) if D != 0 and f != 0 else 0.71
+                self.naEntry.setText(str(round(NA, self.fnum)))
 
     def searchButtonClicked(self):
         # Change status
@@ -451,7 +480,7 @@ class Widget(QWidget):
         self.result.clear()
         pol = self.pol_dependency.currentText()
         wl_domain = self.wlDomain.currentText()
-        wl = int(self.wlValue.currentText())
+        wl = float(self.wlValue.currentText())
         na = float(self.naEntry.text())
         min_T = float(self.tEntry.text())
         max_H = int(self.hEntry.text())
@@ -674,7 +703,6 @@ class Widget(QWidget):
                     new_key = f'{key[:-(len(numel)+1)]}-{float(meanAR) :.1f}-{float(meanT) :.1f}-{float(FOM) :.4f}-{numel}'
                     sorted_rst_dict[new_key] = rst_ar
                 self.sorted_rst_dict = OrderedDict(sorted(sorted_rst_dict.items(), key=lambda x: float(x[0].split('-')[5]), reverse=True))
-                print(self.sorted_rst_dict.keys())
                 list_for_print = [f'{key.split("-")[0]},  H: {key.split("-")[1]} nm,  P: {key.split("-")[2]} nm,  mean AR: {key.split("-")[3]},  mean T: {key.split("-")[4]} %,  FOM: {key.split("-")[5]}' for key in self.sorted_rst_dict.keys()]
                 self.result.addItems(list_for_print)
             
