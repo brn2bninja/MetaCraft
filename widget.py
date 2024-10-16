@@ -24,6 +24,7 @@ class Widget(QWidget):
         self.matdir = "Materials/" if os.path.exists("Materials/") else "../../../Materials/"
         self.set_wl_mat_user()
         self.sorted = False
+        self.weight = [1, 0, 0, 0]
         
         # 1. Groupbox for metalens design parameters
         MetadesignBox = QGroupBox("Metalens Design Parameters")
@@ -81,11 +82,11 @@ class Widget(QWidget):
         
         # Material
         self.mat_uv =  ["Select All", "SiNx (High)", "SiNx (Mid)", "SiNx (Low)", "ZrO2 (PER)"]
-        self.mat_vis = ["Select All", "a-Si (Vis)", "TiO2", "TiO2 (PER)", "Si (PER)"]
-        self.mat_nir = ["Select All", "a-Si (NIR)", "Si (PER)"]
+        self.mat_vis = ["Select All", "aSi (Vis)", "TiO2", "TiO2 (PER)", "Si (PER)"]
+        self.mat_nir = ["Select All", "aSi (NIR)", "Si (PER)"]
         
         list_all_file = os.listdir(self.matdir)
-        # ex): NIR_userMade-a-Si (NIR)_940_rectangle.npy
+        # ex): NIR_userMade-aSi (NIR)_940_rectangle.npy
         user_file = [f for f in list_all_file if "userMade" in f]
         if len(user_file) != 0:
             for uf in user_file:
@@ -166,12 +167,48 @@ class Widget(QWidget):
                 self.polValue.setFixedWidth(80)
                 self.pol_dependency.setFixedWidth(110)
         self.pol_dependency.currentTextChanged.connect(update_polValue)
+        self.pol_dependency.currentTextChanged.connect(self.setWeights)
         
         pol_layout = QHBoxLayout()
         pol_layout.addWidget(polLabel); pol_layout.addWidget(self.pol_dependency); pol_layout.addWidget(self.polValue)
         
         return pol_layout
 
+    def setWeights(self):
+        selected_dependency = self.pol_dependency.currentText()
+        selected_sort = self.sort_choice.currentText()
+        self.w1_entry.setReadOnly(False); self.w2_entry.setReadOnly(False); self.w3_entry.setReadOnly(False); self.w4_entry.setReadOnly(False)
+        if selected_dependency == "Dependent":
+            if selected_sort == "Transmittance": 
+                self.weight = [1, 0, 0, 0]; 
+                self.w1_entry.setText(str(self.weight[0]))
+                self.w2_entry.setText(str(self.weight[1]))
+                self.w3_entry.setText(str(self.weight[2]))
+                self.w4_entry.setText(str(self.weight[3]))
+                self.w1_entry.setReadOnly(True); self.w2_entry.setReadOnly(True); self.w3_entry.setReadOnly(True); self.w4_entry.setReadOnly(True)
+            else: 
+                self.weight = [0.5, 0.25, 0.25, 0]; 
+                self.w1_entry.setText(str(self.weight[0]))
+                self.w2_entry.setText(str(self.weight[1]))
+                self.w3_entry.setText(str(self.weight[2]))
+                self.w4_entry.setText(str(self.weight[3]))
+                self.w1_entry.setReadOnly(False); self.w2_entry.setReadOnly(False); self.w3_entry.setReadOnly(False); self.w4_entry.setReadOnly(True)
+        elif selected_dependency == "Independent":
+            if selected_sort == "Transmittance": 
+                self.weight = [0.5, 0, 0, 0.5]
+                self.w1_entry.setText(str(self.weight[0]))
+                self.w2_entry.setText(str(self.weight[1]))
+                self.w3_entry.setText(str(self.weight[2]))
+                self.w4_entry.setText(str(self.weight[3]))
+                self.w1_entry.setReadOnly(False); self.w2_entry.setReadOnly(True); self.w3_entry.setReadOnly(True); self.w4_entry.setReadOnly(False)
+            else: 
+                self.weight = [1/3, 1/6, 1/6, 1/3]
+                self.w1_entry.setText(str(self.weight[0]))
+                self.w2_entry.setText(str(self.weight[1]))
+                self.w3_entry.setText(str(self.weight[2]))
+                self.w4_entry.setText(str(self.weight[3]))
+                self.w1_entry.setReadOnly(False); self.w2_entry.setReadOnly(False); self.w3_entry.setReadOnly(False); self.w4_entry.setReadOnly(False)
+      
     def recieveNFD(self):
         # NA, F, D label
         naLabel = QLabel("Numerical Aperture")
@@ -292,6 +329,7 @@ class Widget(QWidget):
         self.sort_choice.setStyleSheet("color: black; background-color: white")
         self.sort_choice.setFixedWidth(100)
         self.sort_choice.addItems(["Transmittance", "FoM"])
+        self.sort_choice.currentTextChanged.connect(self.setWeights)
         def update_sortingmethod():
             selected_dependency = self.pol_dependency.currentText()
             if selected_dependency == "Dependent":
@@ -324,12 +362,47 @@ class Widget(QWidget):
         self.plot_fig.clicked.connect(self.plotFigure)
         Result_additional_layout_3.addWidget(self.plot_fig)
         
+        Result_additional_layout_4 = QHBoxLayout()
+        self.propagate = QPushButton("Propagate")
+        self.propagate.setFixedWidth(90)
+        self.propagate.clicked.connect(self.propagateButtonClicked)
+        Result_additional_layout_4.addWidget(self.propagate)
+        
+        W_FOM_layout = QVBoxLayout()
+        W_layout = QGridLayout(); W_layout.setContentsMargins(0, 0, 0, 0)
+        
+        w1_label = QLabel("w₁: "); w1_label.setAlignment(Qt.AlignRight)
+        self.w1_entry = QLineEdit("1"); self.w1_entry.setMaxLength(5); self.w1_entry.setFixedWidth(self.linewidth // 2); self.w1_entry.setAlignment(Qt.AlignHCenter)
+        W_layout.addWidget(w1_label, 0, 0, 1, 1.5); W_layout.addWidget(self.w1_entry, 0, 1, 1, 2)
+        
+        w2_label = QLabel("w₂: "); w2_label.setAlignment(Qt.AlignRight)
+        self.w2_entry = QLineEdit("0"); self.w2_entry.setMaxLength(5); self.w2_entry.setFixedWidth(self.linewidth // 2); self.w2_entry.setAlignment(Qt.AlignHCenter)
+        W_layout.addWidget(w2_label, 0, 2, 1, 1.5); W_layout.addWidget(self.w2_entry, 0, 3, 1, 2)
+
+        w3_label = QLabel("w₃: "); w3_label.setAlignment(Qt.AlignRight)
+        self.w3_entry = QLineEdit("0"); self.w3_entry.setMaxLength(5); self.w3_entry.setFixedWidth(self.linewidth // 2); self.w3_entry.setAlignment(Qt.AlignHCenter)
+        W_layout.addWidget(w3_label, 0, 4, 1, 1.5); W_layout.addWidget(self.w3_entry, 0, 5, 1, 2)
+        
+        w4_label = QLabel("w₄: "); w4_label.setAlignment(Qt.AlignRight)
+        self.w4_entry = QLineEdit("0"); self.w4_entry.setMaxLength(5); self.w4_entry.setFixedWidth(self.linewidth // 2); self.w4_entry.setAlignment(Qt.AlignHCenter)
+        W_layout.addWidget(w4_label, 0, 6, 1, 1.5); W_layout.addWidget(self.w4_entry, 0, 7, 1, 2)
+        
+        self.w1_entry.setReadOnly(True); self.w2_entry.setReadOnly(True); self.w3_entry.setReadOnly(True); self.w4_entry.setReadOnly(True)
+        
+        FOM_layout = QHBoxLayout()
+        FOM_label = QLabel(f"(Hint: FOM = w₁T + w₂(1-H/Hmax) + w₃(1-AR/ARmax) + w₄R²)")
+        FOM_label.setAlignment(Qt.AlignCenter)
+        FOM_layout.addWidget(FOM_label)
+        W_FOM_layout.addLayout(W_layout); W_FOM_layout.addLayout(FOM_layout)
+        
         Result_additional_layout.addLayout(Result_additional_layout_1)
         Result_additional_layout.addLayout(self.Result_additional_layout_2)
         Result_additional_layout.addLayout(Result_additional_layout_3)
+        Result_additional_layout.addLayout(Result_additional_layout_4)
         
         ResultBox_layout.addWidget(self.result)
         ResultBox_layout.addLayout(Result_additional_layout)
+        ResultBox_layout.addLayout(W_FOM_layout)
         ResultBox.setLayout(ResultBox_layout)
         return ResultBox
     
@@ -480,7 +553,9 @@ class Widget(QWidget):
         self.result.clear()
         pol = self.pol_dependency.currentText()
         wl_domain = self.wlDomain.currentText()
-        wl = float(self.wlValue.currentText())
+        if '.' in self.wlValue.currentText():
+            wl = float(self.wlValue.currentText())
+        else: wl = int(self.wlValue.currentText())
         na = float(self.naEntry.text())
         min_T = float(self.tEntry.text())
         max_H = int(self.hEntry.text())
@@ -639,7 +714,8 @@ class Widget(QWidget):
                 self.sorted_rst_dict = sorted_rst_dict
             elif sort_choice == "FoM":
                 for mat_numel, rst_ar in rst_dict.items():
-                    FOM = rst_ar[:, 4]*0.5 + (1 - rst_ar[:, 0] / max_H) * 0.25 + (1 - rst_ar[:, 0]/ np.min([rst_ar[:, 2], rst_ar[:, 3]]) / max_AR) * 0.25
+                    w1 = float(self.w1_entry.text()); w2 = float(self.w2_entry.text()); w3 = float(self.w3_entry.text())
+                    FOM = w1 * rst_ar[:, 4] + w2 * (1 - rst_ar[:, 0] / max_H) + w3 * (1 - rst_ar[:, 0]/ np.min([rst_ar[:, 2], rst_ar[:, 3]]) / max_AR)
                     rst_ar = np.concatenate((rst_ar, FOM.reshape(-1, 1)), axis=1)
                     rst_ar = rst_ar[np.argsort(-rst_ar[:, -1])]
                     sorted_rst_dict[mat_numel] = rst_ar
@@ -651,21 +727,24 @@ class Widget(QWidget):
         elif pol == "Independent":
             if sort_choice == "Transmittance":
                 for key, rst_ar in rst_dict.items():
-                    meanAR, meanT = self.get_attributes(rst_ar)
-                    # Replace key to "mat-H-P-meanAR-meanT-numel"
+                    P = int(key.split("-")[2]) * nm; D = float(self.dEntry.text()) * 1e-6; num_x = math.floor(D / P)
+                    phase_ideal_2d = self.gen_phase_map(P, D, num=num_x)
+                    phase_meta = self.set_metalens(rst_ar, phase_ideal_2d)
+                    meanAR, meanT, FOM = self.get_attributes(rst_ar, phase_ideal_2d, phase_meta)
+                    # Replace key to "mat-H-P-meanAR-meanT-FOM-numel"
                     numel = key.split("-")[-1]
-                    new_key = f'{key[:-(len(numel)+1)]}-{float(meanAR) :.1f}-{float(meanT) :.1f}-{numel}'
+                    new_key = f'{key[:-(len(numel)+1)]}-{float(meanAR) :.1f}-{float(meanT) :.1f}-{float(FOM) :.4f}-{numel}'
                     sorted_rst_dict[new_key] = rst_ar
                 self.sorted_rst_dict = OrderedDict(sorted(sorted_rst_dict.items(), key=lambda x: float(x[0].split('-')[-2]), reverse=True))
-                list_for_print = [f'{key.split("-")[0]},  H: {key.split("-")[1]} nm,  P: {key.split("-")[2]} nm,  mean AR: {key.split("-")[3]},  mean T: {key.split("-")[4]} %' for key in self.sorted_rst_dict.keys()]
+                list_for_print = [f'{key.split("-")[0]},  H: {key.split("-")[1]} nm,  P: {key.split("-")[2]} nm,  mean AR: {key.split("-")[3]},  mean T: {key.split("-")[4]} %,  FOM: {key.split("-")[5]}' for key in self.sorted_rst_dict.keys()]
                 self.result.addItems(list_for_print)
                 
             elif sort_choice == "FoM (fast)":
                 for key, rst_ar in rst_dict.items():
                     P = int(key.split("-")[2]) * nm; D = float(self.dEntry.text()) * 1e-6; num_x = math.floor(D / P)
-                    phase_ideal = self.gen_phase_map(P, D, num=num_x)
-                    phase_meta = self.set_metalens(rst_ar, phase_ideal)
-                    meanAR, meanT, FOM = self.get_attributes(rst_ar, phase_ideal, phase_meta)
+                    phase_ideal_2d = self.gen_phase_map(P, D, num=num_x)
+                    phase_meta = self.set_metalens(rst_ar, phase_ideal_2d)
+                    meanAR, meanT, FOM = self.get_attributes(rst_ar, phase_ideal_2d, phase_meta)
                     # Replace key to "mat-H-P-meanAR-meanT-FOM-numel"
                     numel = key.split("-")[-1]
                     new_key = f'{key[:-(len(numel)+1)]}-{float(meanAR) :.1f}-{float(meanT) :.1f}-{float(FOM) :.4f}-{numel}'
@@ -678,20 +757,20 @@ class Widget(QWidget):
                 p_idx = 4 if self.polValue.currentText() == 'Co-pol' else 5
                 for key, rst_ar in rst_dict.items():
                     P = int(key.split("-")[2]) * 1e-9; D = float(self.dEntry.text()) * 1e-6; nx = math.floor(D / P)
-                    phase_ideal = self.gen_phase_map(P, D, num=nx)
-                    phase_meta = self.set_metalens(rst_ar, phase_ideal)
-                    meanAR, meanT, FOM = self.get_attributes(rst_ar, phase_ideal, phase_meta)
+                    phase_ideal_2d = self.gen_phase_map(P, D, num=nx)
+                    phase_meta = self.set_metalens(rst_ar, phase_ideal_2d)
+                    meanAR, meanT, FOM = self.get_attributes(rst_ar, phase_ideal_2d, phase_meta)
                     half_nx = round(nx / 2)
                     for i in range(half_nx):
                         for j in range(i, half_nx):
                             if ((i-(nx-1)/2)**2 + (j-(nx-1)/2)**2 <= (nx/2)**2):    # Within the circle, and one half of the quadrant
-                                phase_within_range = [p for p in rst_ar[:, p_idx] if np.abs(phase_ideal[i,j]-p) < np.pi/8]
+                                phase_within_range = [p for p in rst_ar[:, p_idx] if np.abs(phase_ideal_2d[i,j]-p) < np.pi/18]
                                 for phase_k in phase_within_range:     # Replace phase
                                     temp_phase_meta = np.copy(phase_meta)
                                     idx1 = np.array([i,      i, j,      j, nx-1-i, nx-1-i, nx-1-j, nx-1-j])
                                     idx2 = np.array([j, nx-1-j, i, nx-1-i,      j, nx-1-j,      i, nx-1-i])
                                     temp_phase_meta[idx1, idx2] = phase_k
-                                    temp_meanAR, temp_meanT, temp_FOM = self.get_attributes(rst_ar, phase_ideal, temp_phase_meta)
+                                    temp_meanAR, temp_meanT, temp_FOM = self.get_attributes(rst_ar, phase_ideal_2d, temp_phase_meta)
                                     if temp_FOM > FOM:
                                         meanT = temp_meanT
                                         meanAR = temp_meanAR
@@ -715,7 +794,7 @@ class Widget(QWidget):
         self.sorted = True
         
     def gen_phase_map(self, p, d, **kwargs):
-        wl = int(self.wlValue.currentText()) * 1e-9; f= float(self.fEntry.text()) * 1e-6
+        wl = float(self.wlValue.currentText()) * 1e-9; f= float(self.fEntry.text()) * 1e-6
         if 'num' in kwargs.keys(): # 2D phase map
             num_x = kwargs['num']
             r = p * np.linspace(-(num_x-1)/2, (num_x-1)/2, num_x)        
@@ -748,37 +827,26 @@ class Widget(QWidget):
             phase_meta = np.transpose(phase_meta) # [M, 1]
             phase_real = phase_meta[arg_phase_real] # 2D: [N^2] / 1D: [N]
             if phase_ideal.ndim == 2:
-                nan_i, nan_j = np.where(np.isnan(phase_ideal))
-                phase_real = phase_real.reshape(phase_ideal.shape)  # [N, N]  
-                phase_real[nan_i, nan_j] = np.nan                
-                if 'get_idx' in kwargs.keys():
-                    arg_phase_real += 1
-                    arg_phase_real = arg_phase_real.reshape(phase_ideal.shape)  # [N, N]  
-                    arg_phase_real[nan_i, nan_j] = 0 
-                    return phase_real, arg_phase_real
+                phase_real = phase_real.reshape(phase_ideal.shape)  # [N, N]
+                if np.any(np.isnan(phase_ideal)):
+                    nan_i, nan_j = np.where(np.isnan(phase_ideal)) 
+                    phase_real[nan_i, nan_j] = np.nan                
+                    if 'get_idx' in kwargs.keys():
+                        arg_phase_real += 1
+                        arg_phase_real = arg_phase_real.reshape(phase_ideal.shape)  # [N, N]  
+                        arg_phase_real[nan_i, nan_j] = 0 
+                        return phase_real, arg_phase_real
         return phase_real           
     
     
     # For pol-independent
-    # def get_attributes(self, rst, phase_ideal, phase_meta):
-    def get_attributes(self, *args):
-        if len(args) == 1:
-            rst_ar = args[0]
-        elif len(args) == 3:
-            rst_ar = args[0]
-            phase_ideal = args[1]
-            phase_meta = args[2]
-        
+    def get_attributes(self, rst_ar, phase_ideal, phase_meta):
         if self.polValue.currentText() == 'Co-pol':
             mean_AR = np.mean(rst_ar[:, 0] / rst_ar[:, 2])
             mean_T = np.mean(rst_ar[:, 3])
-            if self.sort_choice.currentText() == "Transmittance":
-                return mean_AR, 100 * mean_T
         elif self.polValue.currentText() == 'Cross-pol':
             mean_AR = np.mean(rst_ar[:, 0] / np.min(rst_ar[:, [2,3]], axis=1))
             mean_T = np.mean(rst_ar[:, 4])
-            if self.sort_choice.currentText() == "Transmittance":
-                return mean_AR, 100 * mean_T
         max_AR = float(self.arEntry.text())
         H = rst_ar[0, 0] * 1e-9
         max_H = int(self.hEntry.text())
@@ -786,7 +854,8 @@ class Widget(QWidget):
         nonnan_phase_meta = phase_meta[~np.isnan(phase_meta)]
         nonnan_phase_ideal = phase_ideal[~np.isnan(phase_ideal)]
         R2 = r2_score(nonnan_phase_meta, nonnan_phase_ideal)
-        FOM = R2/3 + mean_T/3 + (1 - mean_AR/max_AR)/6 + (1 - H/max_H)/6
+        w1 = float(self.w1_entry.text()); w2 = float(self.w2_entry.text()); w3 = float(self.w3_entry.text()); w4 = float(self.w4_entry.text())
+        FOM = w1 * mean_T + w2 * (1 - H/max_H) + w3 * (1 - mean_AR/max_AR) + w4 * R2
         
         return mean_AR, 100 * mean_T, FOM
     
@@ -839,6 +908,69 @@ class Widget(QWidget):
         plt.plot(r*1e6, phase_ideal_1d, 'k:'); plt.plot(r*1e6, phase_meta, 'ro', markersize=5)
         plt.xlabel("Radial Coordinate (μm)"); plt.ylabel("Phase (rad)")
         plt.show()
+    
+    def propagateButtonClicked(self):
+        wl = float(self.wlValue.currentText()) * 1e-9; f= float(self.fEntry.text()) * 1e-6; D = float(self.dEntry.text()) * 1e-6
+        if self.pol_dependency.currentText() == "Dependent":
+            rst_ar, _, P = self.Dependent_resultselection('to plot.')
+        elif self.pol_dependency.currentText() == "Independent":
+            rst_ar, _, P = self.Independent_resultselection('display.')
+        
+        if wl >= (P*math.sqrt(2)):
+            QMessageBox.warning(self, "Warning", "The pitch size is to small for ASM propagation. Please select a lens with bigger pitch size.")
+        else:
+            nx = math.floor(D / P)
+            phase_ideal_2d = self.gen_phase_map(P, D, num=nx)
+            phase_map_2d = self.set_metalens(rst_ar, phase_ideal_2d)
+            phase_map_2d = np.where(np.isnan(phase_map_2d), 0, phase_map_2d)
+
+            pad_factor = 2
+            pixel_size = P
+            field = np.exp(1j * phase_map_2d)
+            num_pixels = nx
+            pad_size = num_pixels * pad_factor
+            if (pad_size - num_pixels) % 2 == 0:
+                padded_wavefront = np.pad(field, ((pad_size - num_pixels) // 2,), mode='constant')
+            else:
+                padded_wavefront = np.pad(field,
+                                          (((pad_size - num_pixels) // 2 + 1, (pad_size - num_pixels) // 2),
+                                           ((pad_size - num_pixels) // 2 + 1, (pad_size - num_pixels) // 2)),
+                                          mode='constant')
+
+            # Generate coordinates in the spatial domain (original size)
+            x = np.linspace(-num_pixels//2, num_pixels//2 - 1, num_pixels) * pixel_size
+            y = np.linspace(-num_pixels//2, num_pixels//2 - 1, num_pixels) * pixel_size
+            
+            # Fourier coordinates for the padded size (spatial frequencies)
+            fx = np.sort(np.fft.fftfreq(pad_size, pixel_size))
+            fy = np.sort(np.fft.fftfreq(pad_size, pixel_size))
+            FX, FY = np.meshgrid(fx, fy)
+
+            # Compute the transfer function in the Fourier domain (Angular Spectrum)
+            k = 2 * np.pi / wl
+            H = np.exp(1j * k * f * np.sqrt(1 - (wl * FX)**2 - (wl * FY)**2))
+
+            # Compute the Fourier transform of the padded wavefront
+            U0 = np.fft.fftshift(np.fft.fft2(padded_wavefront))
+
+            # Apply the transfer function in the Fourier domain
+            U1 = H * U0
+
+            # Inverse Fourier transform to get the propagated field
+            propagated_padded_field = np.fft.ifft2(np.fft.ifftshift(U1))
+            
+            # Crop the result back to the original size
+            crop_start = (pad_size - num_pixels) // 2
+            I = propagated_padded_field[crop_start:crop_start + num_pixels, crop_start:crop_start + num_pixels]
+            I_norm = np.abs(I) / np.max(np.abs(I))
+            plt.figure(figsize=(10, 8))
+            plt.imshow(I_norm, cmap='hot', extent=[x[0], x[-1], y[0], y[-1]])
+            plt.title(f'Intensity at f={self.fEntry.text()}um')
+            plt.xlabel('x (m)')
+            plt.ylabel('y (m)')
+            plt.colorbar(label='Amplitude')
+            plt.show()
+
     
     
     def export_FDTD(self):
